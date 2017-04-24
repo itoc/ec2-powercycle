@@ -63,11 +63,35 @@ def handler(event = False, context = False):
             print 'event JSON doc loaded'
         else:
             data = event
-        if data['DryRun'] in 'True':
-            dryrun = True
-            print 'DryRun is ' + str(dryrun)
+        if 'DryRun' in data:
+            if data['DryRun'] in 'True':
+                dryrun = True
+                print 'DryRun is ' + str(dryrun)
+            else:
+                dryrun = False
+        if 'CrossAccount' in data:
+            if data['CrossAccount'] in 'True':
+                print 'Using AWS Cross Account Role'
+
+                arn = 'arn:aws:iam::' + str(data['CrossAccountAWSAccountNumber']) + ':role/' + str(data['CrossAccountRoleName'])
+                stsclient = boto3.client('sts')
+                response = stsclient.assume_role(
+                    RoleArn=arn,
+                    RoleSessionName='EC2PowerCycling',
+                    DurationSeconds=900
+                )
+
+                global ec
+                ec = boto3.client(
+                    'ec2',
+                    aws_access_key_id=response['Credentials']['AccessKeyId'],
+                    aws_secret_access_key=response['Credentials']['SecretAccessKey'],
+                    aws_session_token=response['Credentials']['SessionToken']
+                )
     except Exception, e:
-        dryrun = False
+        print 'Exception Envountered! Fail Safe to DryRun'
+        print 'Exception: ' + str(e)
+        dryrun = True
     if len(exclude_env_tags) > 0:
         print 'Excluding instances with environment tag values: ' + str(exclude_env_tags)
     reservations = ec.describe_instances(
