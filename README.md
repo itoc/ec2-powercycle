@@ -4,13 +4,13 @@ _AWS Lambda function to stop and start EC2 instances based on resource tag using
 
 
 ### Table of Contents
-**[Usage](#usage)**  
-**[Testing and development](#testing-and-development)**  
-**[Creating a Lambda Deployment Package](#creating-a-lambda-deployment-package)**  
-**[Build environment](#build-environment)**  
-**[Serverless build pipeline](#serverless-build-pipeline)**  
-**[Identity and Access Management policy](#identity-and-access-management-policy)**  
-**[Creating and scheduling Lambda function](#creating-and-scheduling-lambda-function)**   
+**[Usage](#usage)**
+**[Testing and development](#testing-and-development)**
+**[Creating a Lambda Deployment Package](#creating-a-lambda-deployment-package)**
+**[Build environment](#build-environment)**
+**[Serverless build pipeline](#serverless-build-pipeline)**
+**[Identity and Access Management policy](#identity-and-access-management-policy)**
+**[Creating and scheduling Lambda function](#creating-and-scheduling-lambda-function)**
 
 
 ## Usage
@@ -29,11 +29,23 @@ As of [commit 00389de](https://github.com/Financial-Times/ec2-powercycle/commit/
 ec2Powercycle: https://raw.githubusercontent.com/Financial-Times/ec2-powercycle/master/json/dev-schedule.json
 ```
 
+### Assume Cross Account Roles
+To power cycle instances using a cross account role, pass in the following values to the handler function.
 
+* `"CrossAccount" : "True"`
+* `"CrossAccountAWSAccountNumber" : "123456789123"`
+* `"CrossAccountRoleName" : "NAME_OF_ROLE_TO_ASSUME"`
+
+Per below, executing this locally would look like:
+
+```
+cd /path/to/repository
+python -c "from ec2_powercycle import * ; handler({ \"DryRun\": \"True\", \"CrossAccount\": \"True\", \"CrossAccountAWSAccountNumber\":\"123456789123\", \"CrossAccountRoleName\":\"NAME_OF_ROLE_TO_ASSUME\" })"
+```
 
 ## Testing and development
 
-To run ec2Powercycle job local dev environment you need to install all dependencies such as boto3 and croniter. 
+To run ec2Powercycle job local dev environment you need to install all dependencies such as boto3 and croniter.
 Full list of dependencies can be found in the file [ec2_powercycle.py](https://github.com/Financial-Times/ec2-powercycle/blob/master/ec2_powercycle.py)
 
 You also need to set up AWS credetials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION) in order to interact with AWS API.
@@ -45,7 +57,7 @@ cd /path/to/repository
 python -c "from ec2_powercycle import * ; handler()"
 ```
 
-Function can be executed in so-called dryrun mode with the following command. 
+Function can be executed in so-called dryrun mode with the following command.
 ```
 python -c "from ec2_powercycle import * ; handler({ \"DryRun\": \"True\" })"
 ```
@@ -64,7 +76,7 @@ pip install croniter requests -t lib/
 ### Creating zip archive
 
 The following command is run in the root of the ec2-powercycle repository.
-The command bundles ec2-powercycle business logic, its dependencies and the README.md which can be uploaded to Lambda or S3 bucket.   
+The command bundles ec2-powercycle business logic, its dependencies and the README.md which can be uploaded to Lambda or S3 bucket.
 
 ```
 zip -r ../ec2-powercycle-0.0.1.zip ./*.py lib/ README.md
@@ -72,7 +84,7 @@ zip -r ../ec2-powercycle-0.0.1.zip ./*.py lib/ README.md
 
 ## Build environment
 
-This repository ships with [Dockerfile](https://github.com/Financial-Times/ec2-powercycle/blob/master/Dockerfile) that can be used for packaging and deployment automation. 
+This repository ships with [Dockerfile](https://github.com/Financial-Times/ec2-powercycle/blob/master/Dockerfile) that can be used for packaging and deployment automation.
 
 ### Building Docker image
 
@@ -95,7 +107,7 @@ sudo docker run --env "AWS_ACCESS_KEY_ID=<access_key_id>" \
 -it ec2powercycle
 ```
 
-Launching Docker image without environment variable will run [post-to-lambda.sh](https://github.com/Financial-Times/ec2-powercycle/blob/master/post-to-lambda.sh) in interactive mode that prompts user for AWS credentials. 
+Launching Docker image without environment variable will run [post-to-lambda.sh](https://github.com/Financial-Times/ec2-powercycle/blob/master/post-to-lambda.sh) in interactive mode that prompts user for AWS credentials.
 ```
 sudo docker run -it ec2-powercycle
 ```
@@ -114,7 +126,7 @@ Build pipeline currently has 2 workflows: [Development](https://github.com/Finan
 
 The Development workflow is run everytime the _master_ branch is updated. Development workflow creates a deployment package, deploys it to Lambda and invokes the function against DEV alias.
 
-Once you have completed Development work and wish to "promote" your code to Production you can trigger Production workflow by creating a Git tag with prefix _release-_ and pushing the tag to repository. 
+Once you have completed Development work and wish to "promote" your code to Production you can trigger Production workflow by creating a Git tag with prefix _release-_ and pushing the tag to repository.
 
 Use the following commands to create a tag and push it to repository.
 
@@ -136,12 +148,12 @@ To enable Circleci build job to deploy deployment package to Lambda the build jo
 When creating Lambda function you will be asked to associate IAM role with the function.
 
 ### IAM policy for Lambda function
-  
+
 The following policy example enables Lambda function to access the following AWS services:
 
   * __CloudWatch__ - Full access to Amazon CloudWatch for logging and job scheduling
   * __EC2__ - Access to query status and stop/start instances when resource tag ec2Powercycle is attached to the instance and environment tag does not equal __p__ (p=production)
-  
+
 ```
 {
     "Version": "2012-10-17",
@@ -211,12 +223,12 @@ The following policy enables build and deployment job to update Lambda function,
 
 ## Creating and scheduling Lambda function
 
-Once deployment package has been created we can create a Lambda function and use CloudWatch to set the function to run periodically. 
+Once deployment package has been created we can create a Lambda function and use CloudWatch to set the function to run periodically.
 
 ### Creating Lambda function
 
  1. Log on to AWS console and go to Lambda configuration menu
- 2. Click _Create a Lambda function_ 
+ 2. Click _Create a Lambda function_
  3. In _Select blueprint_ menu choose one of the blueprints (e.g. _s3-get-object-python_) click _Remove_ button on the next screen to remove _triggers_. Then click _Next_.
  4. on _Configure function_ page provide the following details
  * Name*: ec2-powercycle
@@ -227,7 +239,7 @@ Once deployment package has been created we can create a Lambda function and use
  7. Select the role that has the above IAM policy attached to it
  8. Set _Timeout_ value 1 min
  9. Click _Next_ and _Create function_
-  
+
 ### Scheduling Lambda function
 
  1. In Lambda configuration menu open the ec2-powercycle Lambda job
@@ -238,4 +250,3 @@ Once deployment package has been created we can create a Lambda function and use
  * Rule description:_optional description of the rule_
  * Schedule expression: _rate(15 minutes)_
  5. Click _Submit_ to create schedule
- 
