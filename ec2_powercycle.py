@@ -17,11 +17,13 @@ from functions import *
 Lambda function to stop and start EC2 instances
 
 Usage:
-To enable stop/start schedule on EC2 instance add tag businessHours: { "start": 0 8 * * *", "stop": "0 17 * * *" }
+To enable stop/start schedule on EC2 instance add tag ec2Powercycle: { "start": 0 8 * * *", "stop": "0 17 * * *" }
 
 Author: Jussi Heinonen
 Date: 21.7.2016
 URL: https://github.com/jussi-ft/ec2-powercycle
+
+Updated and Adapted by Itoc - April 2017 (https://github.com/itoc/ec2-powercycle)
 '''
 tag = 'ec2Powercycle' # Set resource tag
 ec = boto3.client('ec2')
