@@ -24,7 +24,6 @@ Date: 21.7.2016
 URL: https://github.com/jussi-ft/ec2-powercycle
 '''
 tag = 'ec2Powercycle' # Set resource tag
-exclude_env_tags=['p'] # Value of the environment tags that should be excluded from powercycle
 ec = boto3.client('ec2')
 
 def getDesiredState(json_string):
@@ -92,8 +91,6 @@ def handler(event = False, context = False):
         print 'Exception Envountered! Fail Safe to DryRun'
         print 'Exception: ' + str(e)
         dryrun = True
-    if len(exclude_env_tags) > 0:
-        print 'Excluding instances with environment tag values: ' + str(exclude_env_tags)
     reservations = ec.describe_instances(
     Filters=[
     {'Name': 'tag:' + tag, 'Values': ['*'],
@@ -127,23 +124,11 @@ def handler(event = False, context = False):
             if desired_state == 'stopped' and str(instance['State']['Name']) == 'running':
                 print 'Instance ' + instance['InstanceId'] + ' business hours are ' + resource_tags[tag]
                 print 'Current status of instance is: ' +  str(instance['State']['Name']) + ' . Stopping instance.'
-                try:
-                    if resource_tags['environment'] in exclude_env_tags:
-                        print instance['InstanceId'] + ' has environment tag ' +  resource_tags['environment'] + ' . Excluding from powercycle.'
-                    else:
-                        stopInstanceIds.append(instance['InstanceId'])
-                except Exception,e:
-                    print instance['InstanceId'] + ' is missing environment tag. Excluding from powercycle.'
+                stopInstanceIds.append(instance['InstanceId'])
             elif desired_state == 'running' and str(instance['State']['Name']) == 'stopped':
                 print 'Instance ' + instance['InstanceId'] + ' business hours are ' + resource_tags[tag]
                 print 'Current status of instance is: ' +  str(instance['State']['Name']) + ' . Starting instance.'
-                try:
-                    if resource_tags['environment'] in exclude_env_tags:
-                        print instance['InstanceId'] + ' has environment tag ' +  resource_tags['environment'] + ' . Excluding from powercycle.'
-                    else:
-                        startInstanceIds.append(instance['InstanceId'])
-                except Exception,e:
-                    print instance['InstanceId'] + ' is missing environment tag. Excluding from powercycle.'
+                startInstanceIds.append(instance['InstanceId'])
             elif not desired_state:
                 print 'Error processing JSON document: ' + resource_tags[tag] + ' on instance ' + instance['InstanceId']
             else:
