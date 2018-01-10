@@ -19,7 +19,7 @@ Lambda function to stop and start EC2 instances
 Usage:
 To enable stop/start schedule on EC2 instance add tag businessHours: { "start": 0 8 * * *", "stop": "0 17 * * *" }
 
-Author: Jussi Heinonen 
+Author: Jussi Heinonen
 Date: 21.7.2016
 URL: https://github.com/jussi-ft/ec2-powercycle
 '''
@@ -44,6 +44,30 @@ def handler(event = False, context = False):
             print('DryRun is ' + str(dryrun))
     except Exception, e:
         dryrun = False
+    try:
+        if 'CrossAccount' in data:
+            if data['CrossAccount'] in 'True':
+                print 'Using AWS Cross Account Role'
+
+                arn = 'arn:aws:iam::' + str(data['CrossAccountAWSAccountNumber']) + ':role/' + str(data['CrossAccountRoleName'])
+                stsclient = boto3.client('sts')
+                response = stsclient.assume_role(
+                    RoleArn=arn,
+                    RoleSessionName='EC2PowerCycling',
+                    DurationSeconds=900
+                )
+
+                global ec
+                ec = boto3.client(
+                    'ec2',
+                    aws_access_key_id=response['Credentials']['AccessKeyId'],
+                    aws_secret_access_key=response['Credentials']['SecretAccessKey'],
+                    aws_session_token=response['Credentials']['SessionToken']
+        )
+    except Exception, e:
+        print('Error: ' + str(e))
+        sys.exit(1)
+
     if len(exclude_env_tags) > 0:
         print('Excluding instances with environment tag values: ' + str(exclude_env_tags))
 
@@ -54,7 +78,7 @@ def handler(event = False, context = False):
 
 
 def getDesiredState(json_string):
-    base = datetime.now()        
+    base = datetime.now()
     try:
         schedule = json.loads(json_string)
         print('Start schedule: ' + str(schedule['start']))
