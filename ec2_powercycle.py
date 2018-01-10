@@ -25,33 +25,37 @@ URL: https://github.com/jussi-ft/ec2-powercycle
 
 Updated and Adapted by Itoc - April 2017 (https://github.com/itoc/ec2-powercycle)
 '''
-tag = 'ec2Powercycle' # Set resource tag
+tag = 'ec2Powercycle'  # Set resource tag
+ENV_TAG = 'environment'  # The name of the AWS tag holding the type of environment.
+exclude_env_tags = ['p']  # Value of the environment tags that should be excluded from powercycle
 ec = boto3.client('ec2')
 
 def getDesiredState(json_string):
     base = datetime.now()
     try:
-        schedule=json.loads(json_string)
-        print 'Start schedule: ' + str(schedule['start'])
-        print 'Stop schedule: ' + str(schedule['stop'])
+        schedule = json.loads(json_string)
+        print('Start schedule: ' + str(schedule['start']))
+        print('Stop schedule: ' + str(schedule['stop']))
         starttime = croniter(schedule['start'], base)
         stoptime = croniter(schedule['stop'], base)
         if stoptime.get_prev(datetime) > starttime.get_prev(datetime):
-            print 'Stop event ' + str(stoptime.get_prev(datetime)) + ' is more recent than start event ' + str(starttime.get_prev(datetime)) + '. Desired state: stopped'
+            print('Stop event ' + str(stoptime.get_prev(datetime)) + ' is more recent than start event ' + str(starttime.get_prev(datetime)) + '. Desired state: stopped')
             return 'stopped'
         else:
-            print 'Start event ' + str(starttime.get_prev(datetime)) + ' is more recent than stop event ' + str(stoptime.get_prev(datetime)) + '. Desired state: running'
+            print('Start event ' + str(starttime.get_prev(datetime)) + ' is more recent than stop event ' + str(stoptime.get_prev(datetime)) + '. Desired state: running')
             return 'running'
     except Exception, e:
-        print 'Error: ' + str(e)
+        print('Error: ' + str(e))
         return False
 
-def get_resoure_tags(data):
+
+
+def get_resource_tags(data):
     tags = {}
     for item in data:
-        tmplist = item.values()
-        tags[tmplist[1]] = tmplist[0]
+        tags[item['Key']] = item['Value']
     return tags
+
 
 def handler(event = False, context = False):
     startInstanceIds=[]
@@ -94,9 +98,11 @@ def handler(event = False, context = False):
         print 'Exception: ' + str(e)
         dryrun = True
     reservations = ec.describe_instances(
-    Filters=[
+        Filters=[
     {'Name': 'tag:' + tag, 'Values': ['*'],
+            {'Name': 'tag:' + tag, 'Values': ['*'],
     }]
+             }]
     ).get('Reservations', [])
 
     instances = sum(
@@ -104,16 +110,16 @@ def handler(event = False, context = False):
                 [i for i in r['Instances']]
                 for r in reservations
             ], [])
-    print 'Found ' + str(len(instances)) + ' instances with tag ' + tag
+        print('Found ' + str(len(instances)) + ' instances with tag ' + tag)
     if len(instances) > 0:
-        print "InstanceIDs with tag " + tag + ':'
+        print("InstanceIDs with tag " + tag + ':')
         for element in instances:
-            print '\t * ' + str(element['InstanceId'])
+            print('\t * ' + str(element['InstanceId']))
     for instance in instances:
         #print 'instance details'
-        print '________________'
+                print('________________')
         #pprint.pprint(instance)
-        resource_tags = get_resoure_tags(instance['Tags'])
+        resource_tags = get_resource_tags(instance['Tags'])
         try:
             if re.search("http",resource_tags[tag]):
                 try:
@@ -124,8 +130,8 @@ def handler(event = False, context = False):
                     print 'Failed to load document ' + resource_tags[tag]
             desired_state=getDesiredState(resource_tags[tag])
             if desired_state == 'stopped' and str(instance['State']['Name']) == 'running':
-                print 'Instance ' + instance['InstanceId'] + ' business hours are ' + resource_tags[tag]
-                print 'Current status of instance is: ' +  str(instance['State']['Name']) + ' . Stopping instance.'
+                                print('Instance ' + instance['InstanceId'] + ' business hours are ' + resource_tags[tag])
+                                print('Current status of instance is: ' +  str(instance['State']['Name']) + ' . Stopping instance.')print 'Current status of instance is: ' +  str(instance['State']['Name']) + ' . Stopping instance.'
                 stopInstanceIds.append(instance['InstanceId'])
             elif desired_state == 'running' and str(instance['State']['Name']) == 'stopped':
                 print 'Instance ' + instance['InstanceId'] + ' business hours are ' + resource_tags[tag]
